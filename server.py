@@ -106,19 +106,48 @@ class TTMLWatcher(FileSystemEventHandler):
 class PodcastRequestHandler(SimpleHTTPRequestHandler):
     CACHE_FILE = 'podcast_cache.json'
     TTML_CACHE_DIR = 'cached_ttml'
-    
+
+    # In-memory cache of parsed transcript chunks, keyed by file path, so repeated
+    # requests don't re-parse unchanged TTML/XML files from disk every time.
+    # Value: (mtime, chunks)
+    _transcript_content_cache = {}
+    _transcript_content_cache_lock = threading.Lock()
+
+    def parse_ttml_file_cached(self, file_path):
+        """Like parse_ttml_file, but reuses the in-memory cache when the file's
+        mtime hasn't changed since the last parse."""
+        try:
+            mtime = os.path.getmtime(file_path)
+        except OSError:
+            return self.parse_ttml_file(file_path)
+
+        with self._transcript_content_cache_lock:
+            cached = self._transcript_content_cache.get(file_path)
+            if cached and cached[0] == mtime:
+                return cached[1]
+
+        parsed = self.parse_ttml_file(file_path)
+        if parsed:
+            with self._transcript_content_cache_lock:
+                self._transcript_content_cache[file_path] = (mtime, parsed)
+        return parsed
+
     def do_GET(self):
         parsed_path = urllib.parse.urlparse(self.path)
-        
+
         if parsed_path.path == '/api/podcasts-cached':
             self.send_cached_podcasts()
+        elif parsed_path.path == self.CACHE_FILE or parsed_path.path.startswith('/' + self.CACHE_FILE) \
+                or parsed_path.path == '/' + self.TTML_CACHE_DIR or parsed_path.path.startswith('/' + self.TTML_CACHE_DIR + '/'):
+            # Don't expose cached transcripts / metadata as raw static files
+            self.send_error(404, "Not found")
         else:
             # Serve static files normally
             super().do_GET()
-    
+
     def do_POST(self):
         parsed_path = urllib.parse.urlparse(self.path)
-        
+
         if parsed_path.path == '/api/delete-episode':
             self.delete_episode()
         else:
@@ -143,6 +172,18 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"Error saving cache: {e}")
     
+    def get_cached_file_hash(self, filename, cached_file_path):
+        """Get the hash for a file already stored in TTML_CACHE_DIR.
+
+        Cached filenames are written as '{hash}_{original_name}', so the hash can
+        usually be read straight off the filename instead of re-hashing the whole
+        file's contents on every request.
+        """
+        prefix = filename.split('_', 1)[0]
+        if len(prefix) == 32 and all(c in '0123456789abcdef' for c in prefix):
+            return prefix
+        return self.get_file_hash(cached_file_path)
+
     def get_file_hash(self, file_path):
         """Get MD5 hash of file for change detection"""
         hash_md5 = hashlib.md5()
@@ -321,11 +362,11 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
             
             # Find all p elements within body
             body = root.find('.//tt:body', namespaces)
-            if not body:
+            if body is None:
                 # Try without namespace
                 body = root.find('.//body')
-            
-            if body:
+
+            if body is not None:
                 # Find all p elements
                 p_elements = body.findall('.//tt:p', namespaces) or body.findall('.//p')
                 
@@ -390,7 +431,7 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
                 for filename in os.listdir(self.TTML_CACHE_DIR):
                     if filename.endswith('.ttml'):
                         cached_file_path = os.path.join(self.TTML_CACHE_DIR, filename)
-                        file_hash = self.get_file_hash(cached_file_path)
+                        file_hash = self.get_cached_file_hash(filename, cached_file_path)
                         cache_key = f"ttml_{file_hash}"
                         
                         if cache_key in cache:
@@ -510,11 +551,17 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
             
             print(f"Total unique podcasts found: {len(podcast_ids_found)}")
             
-            # Check database and get metadata only for found podcasts
+            # Check database and get metadata only for podcasts that don't already
+            # have cached metadata - avoids copying/querying the (potentially large)
+            # Podcasts SQLite database on every request once metadata is known.
             db_metadata = {}
-            if os.path.exists(db_source_path) and podcast_ids_found:
-                print(f"Reading database metadata for {len(podcast_ids_found)} podcasts")
-                
+            podcast_ids_needing_metadata = {
+                pid for pid in podcast_ids_found
+                if 'metadata' not in cache.get(f"ttml_{transcripts[pid]['file_hash']}", {})
+            }
+            if os.path.exists(db_source_path) and podcast_ids_needing_metadata:
+                print(f"Reading database metadata for {len(podcast_ids_needing_metadata)} podcasts")
+
                 with tempfile.TemporaryDirectory() as temp_dir:
                     # Copy database to temp directory
                     db_path = os.path.join(temp_dir, 'MTLibrary.sqlite')
@@ -543,7 +590,7 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
                             select_fields.append("e.ZFIRSTTIMEAVAILABLE")
                         
                         # Get metadata with podcast info for episodes we have transcripts for
-                        podcast_ids_list = list(podcast_ids_found)
+                        podcast_ids_list = list(podcast_ids_needing_metadata)
                         placeholders = ','.join(['?' for _ in podcast_ids_list])
                         query = f"""
                         SELECT {', '.join(select_fields)}
@@ -633,7 +680,7 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
                 transcript_chunks = []
                 try:
                     if os.path.exists(transcript_data['file_path']):
-                        parsed = self.parse_ttml_file(transcript_data['file_path'])
+                        parsed = self.parse_ttml_file_cached(transcript_data['file_path'])
                         if parsed and parsed['chunks']:
                             transcript_chunks = parsed['chunks']
                 except Exception as e:
@@ -699,9 +746,11 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
             print(f"Total shows: {len(shows_list)}, Total episodes: {total_episodes}")
             
             # Send response
+            # Note: no Access-Control-Allow-Origin header is set. This API serves
+            # personal podcast data; without CORS headers, browsers enforce same-origin
+            # by default and other websites cannot read the response.
             self.send_response(200)
             self.send_header('Content-Type', 'application/json')
-            self.send_header('Access-Control-Allow-Origin', '*')
             self.end_headers()
             
             response = {
@@ -721,8 +770,16 @@ class PodcastRequestHandler(SimpleHTTPRequestHandler):
     def delete_episode(self):
         """Delete an episode from cache and stored TTML files"""
         try:
+            # Require an explicit JSON content type. Browsers only send this without
+            # a CORS preflight for same-origin requests, which blocks simple
+            # cross-site form CSRF against this endpoint.
+            content_type = self.headers.get('Content-Type', '')
+            if not content_type.startswith('application/json'):
+                self.send_error(400, "Content-Type must be application/json")
+                return
+
             # Read request body
-            content_length = int(self.headers['Content-Length'])
+            content_length = int(self.headers.get('Content-Length', 0))
             post_data = self.rfile.read(content_length)
             data = json.loads(post_data.decode('utf-8'))
             
@@ -839,8 +896,9 @@ class PodcastServer:
         temp_handler.process_new_ttml_file(source_path)
 
 def run_server(port=8000):
-    # Create a server instance for the watcher
-    server_address = ('', port)
+    # Bind to loopback only - this serves personal podcast data and should not
+    # be reachable from other devices on the network.
+    server_address = ('127.0.0.1', port)
     httpd = HTTPServer(server_address, PodcastRequestHandler)
     server_instance = PodcastServer()
     

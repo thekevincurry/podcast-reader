@@ -814,18 +814,19 @@
       document.querySelector(`[data-episode-id="${episode.id}"]`).classList.add('selected');
       
       selectedEpisode = episode;
-      
+
       // Hide welcome screen and show episode content
       welcomeScreen.style.display = 'none';
       episodeContent.classList.add('active');
-      
+
       // Update episode header
       episodeTitle.textContent = episode.title;
+      const showUrl = show.url ? safeHttpUrl(show.url) : null;
       episodeMeta.innerHTML = `
         <span><strong>Show:</strong> ${escapeHtml(show.title)} by ${escapeHtml(show.author)}</span>
         <span><strong>Date:</strong> ${formatDate(episode.time)}</span>
         <span><strong>Duration:</strong> ${formatTime(episode.duration)}</span>
-        ${show.url ? `<a href="${show.url}" target="_blank" style="color: #7826b2;">🔗 Show Link</a>` : ''}
+        ${showUrl ? `<a href="${showUrl}" target="_blank" rel="noopener noreferrer" style="color: #7826b2;">🔗 Show Link</a>` : ''}
       `;
       episodeDescription.textContent = episode.description;
       
@@ -1101,6 +1102,20 @@
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    // Only allow http(s) links (e.g. podcast feed website URLs are publisher-controlled
+    // and could otherwise contain a javascript: URI or break out of the href attribute)
+    function safeHttpUrl(url) {
+      try {
+        const parsed = new URL(url, window.location.href);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          return escapeHtml(parsed.href);
+        }
+      } catch (e) {
+        // invalid URL
+      }
+      return null;
     }
     
     function formatTime(totalSeconds) {
