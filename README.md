@@ -14,6 +14,8 @@ A beautiful web-based transcript reader that transforms your Apple Podcasts expe
 ### **This Tool's Advantages:**
 - ✅ **Import entire transcripts** with one click
 - ✅ **Export to Markdown** for ChatGPT, Claude, note-taking apps
+- ✅ **Copy full transcripts** to your clipboard in one click
+- ✅ **Search & filter** shows and episodes instantly
 - ✅ **Clean reading interface** optimized for text consumption
 - ✅ **Google Translate compatible** - translate any episode to your language on your browser
 
@@ -33,7 +35,9 @@ Open http://localhost:8000 in your browser
 Use Apple Podcasts app as usual. When you view transcripts there, they're automatically cached and will appear in this tool.
 
 - **Browse by show** in the sidebar
+- **Search or filter** shows and episodes using the sidebar search box
 - **Click any episode** to read full transcript
+- **Copy a transcript** to your clipboard with the "Copy Transcript" button
 - **Export entire shows** to Markdown with one click
 - **Delete episodes** you no longer need
 

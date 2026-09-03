@@ -1,6 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+  <script>
+    // Applied synchronously (before the deferred module script and first paint)
+    // so a stored theme preference doesn't flash the wrong colors on load.
+    (function () {
+      var stored = localStorage.getItem('theme');
+      if (stored === 'dark' || stored === 'light') {
+        document.documentElement.setAttribute('data-theme', stored);
+      }
+    })();
+  </script>
   <meta charset="UTF-8">
   
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -22,6 +32,7 @@
       --border-light: #f0f0f0;
       --accent: #1a8917;     /* Medium's green accent */
       --accent-hover: #0f730c;
+      --link: #7826b2;
       --max-width: 728px;    /* Medium's content width */
       --font-serif: 'Georgia', 'Times New Roman', serif;
       --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
@@ -111,6 +122,79 @@
     .sidebar-stats {
       font-size: 0.8125rem;
       color: var(--fg-muted);
+    }
+
+    /* Search box */
+    .search-box {
+      position: relative;
+      margin-top: 12px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 8px 32px 8px 32px;
+      font-size: 0.8125rem;
+      font-family: var(--font-sans);
+      color: var(--fg);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      outline: none;
+      transition: border-color 0.2s ease, background 0.2s ease;
+    }
+
+    .search-input:focus {
+      border-color: var(--accent);
+      background: var(--bg);
+    }
+
+    .search-input::placeholder {
+      color: var(--fg-muted);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 9px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 14px;
+      height: 14px;
+      stroke: var(--fg-muted);
+      fill: none;
+      stroke-width: 2;
+      pointer-events: none;
+    }
+
+    .search-clear-btn {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 20px;
+      height: 20px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--fg-muted);
+      font-size: 1rem;
+      line-height: 1;
+      border-radius: 4px;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .search-clear-btn:hover {
+      background: var(--bg-hover);
+      color: var(--fg);
+    }
+
+    .no-results {
+      padding: 24px 20px;
+      color: var(--fg-subtle);
+      font-size: 0.8125rem;
+      text-align: center;
     }
 
     .show-group {
@@ -335,11 +419,20 @@
       font-family: var(--font-sans);
     }
 
+    .episode-header-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 1.5em;
+    }
+
     .episode-header-meta {
       display: flex;
       align-items: center;
+      flex-wrap: wrap;
       gap: 16px;
-      margin-bottom: 1.5em;
       font-size: 0.875rem;
       color: var(--fg-subtle);
       font-family: var(--font-sans);
@@ -353,6 +446,43 @@
 
     .episode-header-meta a:hover {
       color: var(--accent-hover);
+    }
+
+    .copy-transcript-button {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      font-size: 0.8125rem;
+      font-family: var(--font-sans);
+      font-weight: 500;
+      color: var(--fg-subtle);
+      background: var(--bg-subtle);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .copy-transcript-button:hover {
+      background: var(--bg-hover);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .copy-transcript-button:disabled {
+      opacity: 0.7;
+      cursor: default;
+    }
+
+    .copy-icon {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+      flex-shrink: 0;
     }
 
     .episode-header-description {
@@ -446,9 +576,11 @@
       }
     }
 
-    /* 8. Dark mode (prefers-color-scheme) ───── */
+    /* 8. Dark mode ───── */
+    /* Follows the OS preference by default; an explicit data-theme
+       attribute (set via the header toggle) overrides it either way. */
     @media (prefers-color-scheme: dark) {
-      :root {
+      html:not([data-theme="light"]) {
         --bg: #1a1a1a;
         --bg-subtle: #242424;
         --bg-hover: #2a2a2a;
@@ -459,7 +591,52 @@
         --border-light: #2a2a2a;
         --accent: #3db83a;
         --accent-hover: #47d644;
+        --link: #bb86fc;
       }
+    }
+
+    html[data-theme="dark"] {
+      --bg: #1a1a1a;
+      --bg-subtle: #242424;
+      --bg-hover: #2a2a2a;
+      --fg: #e6e6e6;
+      --fg-subtle: #a8a8a8;
+      --fg-muted: #757575;
+      --border: #333333;
+      --border-light: #2a2a2a;
+      --accent: #3db83a;
+      --accent-hover: #47d644;
+      --link: #bb86fc;
+    }
+
+    .theme-toggle {
+      padding: 6px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 12px;
+      transition: background 0.2s ease;
+    }
+
+    .theme-toggle:hover {
+      background: var(--bg-hover);
+    }
+
+    .theme-toggle-icon {
+      width: 18px;
+      height: 18px;
+      stroke: var(--fg-subtle);
+      fill: none;
+      stroke-width: 2;
+      transition: stroke 0.2s ease;
+    }
+
+    .theme-toggle:hover .theme-toggle-icon {
+      stroke: var(--accent);
     }
 
     /* Medium-style selection color */
@@ -547,7 +724,12 @@
   <div class="app-container">
     <header class="header">
       <h1><img src="/favicons/favicon.svg" alt="Podcast Reader" style="width: 24px; height: 24px; margin-right: 8px; vertical-align: middle;"> Podcast Reader</h1>
-      <div class="header-info" id="header-info">Loading podcast data...</div>
+      <div style="display: flex; align-items: center;">
+        <div class="header-info" id="header-info">Loading podcast data...</div>
+        <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode">
+          <svg class="theme-toggle-icon" id="theme-toggle-icon" viewBox="0 0 24 24"></svg>
+        </button>
+      </div>
     </header>
     
     <div class="main-content">
@@ -555,6 +737,14 @@
         <div class="sidebar-header">
           <div class="sidebar-title">Podcast Shows</div>
           <div class="sidebar-stats" id="sidebar-stats">Loading...</div>
+          <div class="search-box">
+            <svg class="search-icon" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="search-input" class="search-input" placeholder="Search shows & episodes..." autocomplete="off" />
+            <button id="search-clear-btn" class="search-clear-btn" title="Clear search" aria-label="Clear search">&times;</button>
+          </div>
         </div>
         <div id="shows-list" class="shows-list">
           <div class="loading">Loading podcast shows...</div>
@@ -572,7 +762,16 @@
         <div id="episode-content" class="episode-content">
           <div class="reading-wrapper">
             <div class="episode-header-title" id="episode-title"></div>
-            <div class="episode-header-meta" id="episode-meta"></div>
+            <div class="episode-header-meta-row">
+              <div class="episode-header-meta" id="episode-meta"></div>
+              <button class="copy-transcript-button" id="copy-transcript-btn" title="Copy full transcript to clipboard">
+                <svg class="copy-icon" viewBox="0 0 24 24">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span id="copy-transcript-label">Copy Transcript</span>
+              </button>
+            </div>
             <div class="episode-header-description" id="episode-description"></div>
             <div class="transcript-container" id="transcript-container"></div>
           </div>
@@ -584,8 +783,11 @@
   <script type="module">
     let showsData = [];
     let websocket = null;
+    let selectedShow = null;
     let selectedEpisode = null;
-    
+    let searchQuery = '';
+    let expandedShowIndices = new Set();
+
     // DOM elements
     const headerInfo = document.getElementById('header-info');
     const sidebarStats = document.getElementById('sidebar-stats');
@@ -596,7 +798,55 @@
     const episodeMeta = document.getElementById('episode-meta');
     const episodeDescription = document.getElementById('episode-description');
     const transcriptContainer = document.getElementById('transcript-container');
-    
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const themeToggleIcon = document.getElementById('theme-toggle-icon');
+    const searchInput = document.getElementById('search-input');
+    const searchClearBtn = document.getElementById('search-clear-btn');
+    const copyTranscriptBtn = document.getElementById('copy-transcript-btn');
+    const copyTranscriptLabel = document.getElementById('copy-transcript-label');
+
+    // Theme toggle (light/dark). Defaults to the OS preference (see the
+    // @media rule in <style>); an explicit choice here overrides it and
+    // is persisted so it's applied synchronously on the next load.
+    const SUN_ICON = '<circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>';
+    const MOON_ICON = '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>';
+
+    function isDarkMode() {
+      const explicit = document.documentElement.getAttribute('data-theme');
+      if (explicit) return explicit === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    function updateThemeIcon() {
+      themeToggleIcon.innerHTML = isDarkMode() ? SUN_ICON : MOON_ICON;
+    }
+
+    themeToggleBtn.addEventListener('click', () => {
+      const next = isDarkMode() ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      updateThemeIcon();
+    });
+
+    updateThemeIcon();
+
+    // Search/filter shows and episodes as the user types
+    searchInput.addEventListener('input', () => {
+      searchQuery = searchInput.value.trim().toLowerCase();
+      searchClearBtn.style.display = searchQuery ? 'flex' : 'none';
+      displayShows();
+    });
+
+    searchClearBtn.addEventListener('click', () => {
+      searchInput.value = '';
+      searchQuery = '';
+      searchClearBtn.style.display = 'none';
+      searchInput.focus();
+      displayShows();
+    });
+
+    copyTranscriptBtn.addEventListener('click', copyTranscriptToClipboard);
+
     // Initialize WebSocket connection
     function connectWebSocket() {
       try {
@@ -691,10 +941,37 @@
       }
     }
     
+    // Filter shows/episodes against the current search query. A show that
+    // matches by title/author keeps all its episodes; otherwise only the
+    // episodes whose own title or description match are kept.
+    function getFilteredShows() {
+      if (!searchQuery) {
+        return showsData.map((show, index) => ({ show, index, episodes: show.episodes, forceExpanded: false }));
+      }
+
+      const results = [];
+      showsData.forEach((show, index) => {
+        const showMatches = show.title.toLowerCase().includes(searchQuery) ||
+                             show.author.toLowerCase().includes(searchQuery);
+
+        const episodes = showMatches
+          ? show.episodes
+          : show.episodes.filter(ep =>
+              ep.title.toLowerCase().includes(searchQuery) ||
+              (ep.description && ep.description.toLowerCase().includes(searchQuery))
+            );
+
+        if (showMatches || episodes.length > 0) {
+          results.push({ show, index, episodes, forceExpanded: true });
+        }
+      });
+      return results;
+    }
+
     // Display podcast shows in sidebar
     function displayShows() {
       showsList.innerHTML = '';
-      
+
       if (showsData.length === 0) {
         showsList.innerHTML = `
           <div class="loading">
@@ -704,8 +981,15 @@
         `;
         return;
       }
-      
-      showsData.forEach(show => {
+
+      const filteredShows = getFilteredShows();
+
+      if (filteredShows.length === 0) {
+        showsList.innerHTML = `<div class="no-results">No shows or episodes match "${escapeHtml(searchInput.value.trim())}"</div>`;
+        return;
+      }
+
+      filteredShows.forEach(({ show, index, episodes, forceExpanded }) => {
         const showGroup = document.createElement('div');
         showGroup.className = 'show-group';
         
@@ -716,7 +1000,7 @@
             <div class="show-title">${escapeHtml(show.title)}</div>
             <div class="show-author">${escapeHtml(show.author)}</div>
           </div>
-          <div class="episode-count">${show.episodes.length}</div>
+          <div class="episode-count">${episodes.length}</div>
           <div class="show-toggle">▼</div>
         `;
         
@@ -742,10 +1026,13 @@
         const episodesList = document.createElement('div');
         episodesList.className = 'episodes-list';
         
-        show.episodes.forEach(episode => {
+        episodes.forEach(episode => {
           const episodeItem = document.createElement('div');
           episodeItem.className = 'episode-item';
           episodeItem.dataset.episodeId = episode.id;
+          if (selectedEpisode && selectedEpisode.id === episode.id) {
+            episodeItem.classList.add('selected');
+          }
           episodeItem.innerHTML = `
             <div class="episode-title">${escapeHtml(episode.title)}</div>
             <div class="episode-meta">
@@ -757,7 +1044,7 @@
               </div>
             </div>
           `;
-          
+
           // Add delete button to actions area
           const actionsDiv = episodeItem.querySelector('.episode-actions');
           const deleteBtn = document.createElement('button');
@@ -780,9 +1067,15 @@
           episodeItem.addEventListener('click', () => selectEpisode(show, episode));
           episodesList.appendChild(episodeItem);
         });
-        
-        showHeader.addEventListener('click', () => toggleShow(showHeader, episodesList));
-        
+
+        if (forceExpanded || expandedShowIndices.has(index)) {
+          showHeader.classList.add('expanded');
+          episodesList.classList.add('expanded');
+          showHeader.querySelector('.show-toggle').textContent = '▲';
+        }
+
+        showHeader.addEventListener('click', () => toggleShow(index, showHeader, episodesList));
+
         showGroup.appendChild(showHeader);
         showGroup.appendChild(episodesList);
         showsList.appendChild(showGroup);
@@ -790,21 +1083,23 @@
     }
     
     // Toggle show expansion
-    function toggleShow(showHeader, episodesList) {
+    function toggleShow(index, showHeader, episodesList) {
       const isExpanded = showHeader.classList.contains('expanded');
       const toggle = showHeader.querySelector('.show-toggle');
-      
+
       if (isExpanded) {
         showHeader.classList.remove('expanded');
         episodesList.classList.remove('expanded');
         toggle.textContent = '▼';
+        expandedShowIndices.delete(index);
       } else {
         showHeader.classList.add('expanded');
         episodesList.classList.add('expanded');
         toggle.textContent = '▲';
+        expandedShowIndices.add(index);
       }
     }
-    
+
     // Select and display episode
     function selectEpisode(show, episode) {
       // Update selected state
@@ -812,7 +1107,9 @@
         item.classList.remove('selected');
       });
       document.querySelector(`[data-episode-id="${episode.id}"]`).classList.add('selected');
-      
+
+      selectedShow = show;
+
       selectedEpisode = episode;
 
       // Hide welcome screen and show episode content
@@ -826,7 +1123,7 @@
         <span><strong>Show:</strong> ${escapeHtml(show.title)} by ${escapeHtml(show.author)}</span>
         <span><strong>Date:</strong> ${formatDate(episode.time)}</span>
         <span><strong>Duration:</strong> ${formatTime(episode.duration)}</span>
-        ${showUrl ? `<a href="${showUrl}" target="_blank" rel="noopener noreferrer" style="color: #7826b2;">🔗 Show Link</a>` : ''}
+        ${showUrl ? `<a href="${showUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--link);">🔗 Show Link</a>` : ''}
       `;
       episodeDescription.textContent = episode.description;
       
@@ -834,39 +1131,43 @@
       displayTranscript(episode.transcripts);
     }
     
+    // Group consecutive transcript chunks spoken by the same speaker
+    function groupTranscriptBySpeaker(transcripts) {
+      const groups = [];
+      let currentGroup = null;
+
+      transcripts.forEach(chunk => {
+        if (currentGroup && currentGroup.speaker === chunk.speaker) {
+          currentGroup.sentences.push(chunk.sentences);
+        } else {
+          currentGroup = {
+            speaker: chunk.speaker,
+            sentences: [chunk.sentences]
+          };
+          groups.push(currentGroup);
+        }
+      });
+
+      return groups;
+    }
+
     // Display transcript
     function displayTranscript(transcripts) {
       transcriptContainer.innerHTML = '';
-      
+
       if (!transcripts || transcripts.length === 0) {
         transcriptContainer.innerHTML = `
           <div class="transcript-chunk">
-            <div class="transcript-text" style="text-align: center; color: #666;">
+            <div class="transcript-text" style="text-align: center; color: var(--fg-subtle);">
               No transcript available for this episode
             </div>
           </div>
         `;
         return;
       }
-      
-      // Group consecutive chunks by the same speaker
-      const groupedTranscripts = [];
-      let currentGroup = null;
-      
-      transcripts.forEach(chunk => {
-        if (currentGroup && currentGroup.speaker === chunk.speaker) {
-          // Add to existing group
-          currentGroup.sentences.push(chunk.sentences);
-        } else {
-          // Start new group
-          currentGroup = {
-            speaker: chunk.speaker,
-            sentences: [chunk.sentences]
-          };
-          groupedTranscripts.push(currentGroup);
-        }
-      });
-      
+
+      const groupedTranscripts = groupTranscriptBySpeaker(transcripts);
+
       // Display grouped transcripts
       groupedTranscripts.forEach(group => {
         const chunkDiv = document.createElement('div');
@@ -887,7 +1188,78 @@
         transcriptContainer.appendChild(chunkDiv);
       });
     }
-    
+
+    // Build plain text for a single episode's transcript, including
+    // episode metadata, so it reads well when pasted elsewhere
+    function generateTranscriptText(show, episode) {
+      let text = `${episode.title}\n\n`;
+      text += `Show: ${show.title} by ${show.author}\n`;
+      text += `Date: ${formatDate(episode.time)}\n`;
+      text += `Duration: ${formatTime(episode.duration)}\n\n`;
+
+      if (episode.description) {
+        text += `${episode.description}\n\n`;
+      }
+
+      text += `---\n\n`;
+
+      if (episode.transcripts && episode.transcripts.length > 0) {
+        const groupedTranscripts = groupTranscriptBySpeaker(episode.transcripts);
+        groupedTranscripts.forEach(group => {
+          text += `${group.speaker}: ${group.sentences.join(' ')}\n\n`;
+        });
+      } else {
+        text += 'No transcript available.\n';
+      }
+
+      return text;
+    }
+
+    // Copy the full transcript (with episode metadata) to the clipboard
+    async function copyTranscriptToClipboard() {
+      if (!selectedEpisode || !selectedShow) return;
+
+      const text = generateTranscriptText(selectedShow, selectedEpisode);
+
+      try {
+        await navigator.clipboard.writeText(text);
+        showCopyFeedback();
+      } catch (e) {
+        console.error('Clipboard write failed, falling back:', e);
+        fallbackCopyText(text);
+      }
+    }
+
+    // Briefly swap the copy button's label to confirm success
+    function showCopyFeedback() {
+      const originalLabel = copyTranscriptLabel.textContent;
+      copyTranscriptBtn.disabled = true;
+      copyTranscriptLabel.textContent = 'Copied!';
+      setTimeout(() => {
+        copyTranscriptLabel.textContent = originalLabel;
+        copyTranscriptBtn.disabled = false;
+      }, 1500);
+    }
+
+    // Fallback for browsers/contexts where the async Clipboard API is unavailable
+    function fallbackCopyText(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showCopyFeedback();
+      } catch (e) {
+        console.error('Fallback copy failed:', e);
+        alert('Failed to copy transcript. Please select and copy the text manually.');
+      } finally {
+        document.body.removeChild(textarea);
+      }
+    }
+
     // Export entire podcast show to Markdown
     function exportPodcastToMarkdown(show) {
       const markdown = generatePodcastMarkdown(show);
@@ -945,24 +1317,8 @@
         markdown += `### Transcript\n\n`;
         
         if (episode.transcripts && episode.transcripts.length > 0) {
-          // Group consecutive chunks by the same speaker
-          const groupedTranscripts = [];
-          let currentGroup = null;
-          
-          episode.transcripts.forEach(chunk => {
-            if (currentGroup && currentGroup.speaker === chunk.speaker) {
-              // Add to existing group
-              currentGroup.sentences.push(chunk.sentences);
-            } else {
-              // Start new group
-              currentGroup = {
-                speaker: chunk.speaker,
-                sentences: [chunk.sentences]
-              };
-              groupedTranscripts.push(currentGroup);
-            }
-          });
-          
+          const groupedTranscripts = groupTranscriptBySpeaker(episode.transcripts);
+
           // Generate markdown for grouped transcripts
           groupedTranscripts.forEach(group => {
             markdown += `**${group.speaker}:** ${group.sentences.join(' ')}\n\n`;
